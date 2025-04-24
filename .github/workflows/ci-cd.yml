@@ -1,0 +1,71 @@
+name: Node.js API CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # Job pour installer les dépendances, analyser le code, et exécuter les tests
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.test.outcome }}  # Une sortie pour l'état des tests
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '22.14.0'  # Spécifie la version de Node.js
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Analyze code with ESLint
+      run: npm run lint
+      continue-on-error: false  # Le workflow échouera si l'analyse échoue
+
+    - name: Run tests
+      id: test
+      run: npm test
+      continue-on-error: false  # Le workflow échouera si les tests échouent
+
+    - name: Build (si nécessaire)
+      run: npm run build  # Cela dépend si tu as une étape de build dans ton projet Node.js
+      if: success()  # Cela ne sera exécuté que si les tests et l'analyse passent
+
+  # Job pour générer le changelog lors d'un merge vers main
+  changelog:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set Git user for CI
+      run: |
+        git config --global user.email "ci-bot@example.com"
+        git config --global user.name "CI Bot"
+
+    - name: Install standard-version
+      run: npm install -g standard-version
+
+    - name: Generate changelog
+      run: |
+        standard-version --first-release  # Génère un changelog lors du premier commit ou de la release
+
+  # Job pour afficher le badge de statut
+  status-badge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display the status badge
+        run: |
+          echo "Status badge URL: https://img.shields.io/github/workflow/status/${{ github.repository }}/Node.js%20API%20CI"
