@@ -10,11 +10,11 @@ on:
       - main
 
 jobs:
-  # Job pour installer les dépendances, analyser le code, et exécuter les tests
+  # install dépendances, analyser le code, et exécute les tests
   build:
     runs-on: ubuntu-latest
     outputs:
-      status: ${{ steps.test.outcome }}  # Une sortie pour l'état des tests
+      status: ${{ steps.test.outcome }}  # l'état des tests
 
     steps:
     - name: Checkout code
@@ -23,14 +23,17 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '22.14.0'  # Spécifie la version de Node.js
+        node-version: '22.14.0' 
 
     - name: Install dependencies
-      run: npm install
+      run: npm install && npm install eslint --save-dev
+
+    - name: Initialize ESLint config
+      run: npx eslint --init --no-eslintrc
 
     - name: Analyze code with ESLint
       run: npm run lint
-      continue-on-error: false  # Le workflow échouera si l'analyse échoue
+      continue-on-error: false  
 
     - name: Run tests
       id: test
@@ -41,7 +44,7 @@ jobs:
       run: npm run build  # Cela dépend si tu as une étape de build dans ton projet Node.js
       if: success()  # Cela ne sera exécuté que si les tests et l'analyse passent
 
-  # Job pour générer le changelog lors d'un merge vers main
+  # générer le changelog si push main
   changelog:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -62,7 +65,7 @@ jobs:
       run: |
         standard-version --first-release  # Génère un changelog lors du premier commit ou de la release
 
-  # Job pour afficher le badge de statut
+  # badge de statut
   status-badge:
     runs-on: ubuntu-latest
     steps:
