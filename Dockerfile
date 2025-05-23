@@ -13,7 +13,7 @@ RUN npm install
 # Copie du code source
 COPY . .
 
-# Exposition du port de l’API (modifie si nécessaire)
+# Exposition du port de l’API
 EXPOSE 3001
 
 # Démarrage de l’API
