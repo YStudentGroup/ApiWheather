@@ -5,50 +5,43 @@ on:
     branches:
       - main
 
+env:
+  VM_IP: 35.241.239.77
+
 jobs:
   terraform-and-deploy:
     runs-on: ubuntu-latest
-    env:
-      VM_IP: 35.241.239.77
 
     defaults:
       run:
-        working-directory: terraform  # Exécuter dans dossier
+        working-directory: terraform
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Create terraform directory (in case it doesn't exist)
-        run: mkdir -p .
 
       - name: Setup Google Cloud auth
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Generate SSH key
-        run: |
-          ssh-keygen -t rsa -b 4096 -f temp-ssh-key -N ""
-          echo "SSH_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
-          cat temp-ssh-key >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          echo "SSH_PUBLIC_KEY=$(cat temp-ssh-key.pub)" >> $GITHUB_ENV
-
       - name: Inject SSH public key in VM with Terraform
-        working-directory: terraform
         run: |
-          echo "public_ssh_key = \"${SSH_PUBLIC_KEY}\"" > temp-auto.tfvars
+          echo "public_ssh_key = \"${{ secrets.PUBLIC_SSH_KEY }}\"" > temp-auto.tfvars
 
-      - name: Déployer application Node/Mongo sur VM
+      - name: Apply Terraform with static public SSH key
+        run: terraform apply -var-file=temp-auto.tfvars -auto-approve
+
+      - name: Prepare SSH private key
         run: |
-          echo "$SSH_PRIVATE_KEY" > temp-ssh-key.pem
+          echo "${{ secrets.GCP_SSH_PRIVATE_KEY }}" > temp-ssh-key.pem
           chmod 600 temp-ssh-key.pem
-          
+
+      - name: Deploy Node/Mongo App to VM
+        run: |
           echo "Connexion SSH à la VM pour déploiement..."
           ssh -o StrictHostKeyChecking=no -i temp-ssh-key.pem ubuntu@$VM_IP << 'EOF'
             set -e
-            
             echo "Arrêt des conteneurs existants (si présents)..."
             cd /home/ubuntu/API 2>/dev/null && docker compose down || echo "Pas de conteneur à arrêter"
 
@@ -63,7 +56,7 @@ jobs:
 
             echo "Vérification de docker-compose..."
             if ! command -v docker-compose &> /dev/null; then
-              echo "docker-compose introuvable, installation manuelle..."
+              echo "docker-compose introuvable, installation..."
               sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-\$(uname -s)-\$(uname -m)" -o /usr/local/bin/docker-compose
               sudo chmod +x /usr/local/bin/docker-compose
             fi
@@ -76,8 +69,6 @@ jobs:
 
       - name: Check and install Docker on VM
         run: |
-          echo "$SSH_PRIVATE_KEY" > temp-ssh-key.pem
-          chmod 600 temp-ssh-key.pem
           echo "Checking/Installing Docker on $VM_IP..."
           ssh -o StrictHostKeyChecking=no -i temp-ssh-key.pem ubuntu@$VM_IP << EOF
             if ! command -v docker &> /dev/null
