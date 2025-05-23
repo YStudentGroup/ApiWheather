@@ -16,5 +16,5 @@ COPY . .
 # Exposition du port de l’API
 EXPOSE 3001
 
-# Démarrage de l’API
+# Démarrage API
 CMD ["npm", "run", "start:dev"]
