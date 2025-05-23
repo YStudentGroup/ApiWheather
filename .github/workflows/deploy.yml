@@ -1,4 +1,4 @@
-name: Deploy Infrastructure + App to GCP
+name: Deploy Node/Mongo App to GCP VM
 
 on:
   push:
@@ -9,28 +9,12 @@ env:
   VM_IP: 35.241.239.77
 
 jobs:
-  terraform-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: terraform
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Setup Google Cloud auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Inject SSH public key in VM with Terraform
-        run: |
-          echo "public_ssh_key = \"${{ secrets.PUBLIC_SSH_KEY }}\"" > temp-auto.tfvars
-
-      - name: Apply Terraform with static public SSH key
-        run: terraform apply -var-file=temp-auto.tfvars -auto-approve
 
       - name: Prepare SSH private key
         run: |
@@ -42,38 +26,9 @@ jobs:
           echo "Connexion SSH à la VM pour déploiement..."
           ssh -o StrictHostKeyChecking=no -i temp-ssh-key.pem ubuntu@$VM_IP << 'EOF'
             set -e
-            echo "Arrêt des conteneurs existants (si présents)..."
-            cd /home/ubuntu/API 2>/dev/null && docker compose down || echo "Pas de conteneur à arrêter"
 
-            echo "Suppression du dossier existant..."
-            rm -rf /home/ubuntu/API
-
-            echo "Clonage du projet depuis GitHub..."
-            git clone https://github.com/YStudentGroup/ApiWheather.git /home/ubuntu/API
-
-            echo "Création du fichier .env..."
-            echo "MONGO_URI=mongodb://localhost:27017" > /home/ubuntu/API/.env
-
-            echo "Vérification de docker-compose..."
-            if ! command -v docker-compose &> /dev/null; then
-              echo "docker-compose introuvable, installation..."
-              sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-\$(uname -s)-\$(uname -m)" -o /usr/local/bin/docker-compose
-              sudo chmod +x /usr/local/bin/docker-compose
-            fi
-
-            echo "Build et lancement des conteneurs Docker..."
-            cd /home/ubuntu/API
-            docker compose build
-            docker compose up -d
-          EOF
-
-      - name: Check and install Docker on VM
-        run: |
-          echo "Checking/Installing Docker on $VM_IP..."
-          ssh -o StrictHostKeyChecking=no -i temp-ssh-key.pem ubuntu@$VM_IP << EOF
-            if ! command -v docker &> /dev/null
-            then
-              echo "Docker not found. Installing..."
+            echo "Installation de Docker si nécessaire..."
+            if ! command -v docker &> /dev/null; then
               sudo apt-get update
               sudo apt-get install -y ca-certificates curl gnupg
               sudo install -m 0755 -d /etc/apt/keyrings
@@ -86,8 +41,24 @@ jobs:
               sudo apt-get update
               sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
               sudo usermod -aG docker ubuntu
-              echo "Docker installed successfully."
-            else
-              echo "Docker is already installed."
             fi
+
+            echo "Installation de docker-compose si nécessaire..."
+            if ! command -v docker-compose &> /dev/null; then
+              sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-\$(uname -s)-\$(uname -m)" -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+            fi
+
+            echo "Déploiement de l'application..."
+            cd /home/ubuntu
+            rm -rf API || true
+            git clone https://github.com/YStudentGroup/ApiWheather.git API
+            cd API
+
+            echo "Création du fichier .env..."
+            echo "MONGO_URI=mongodb://localhost:27017" > .env
+
+            echo "Démarrage des conteneurs Docker..."
+            docker compose build
+            docker compose up -d
           EOF
