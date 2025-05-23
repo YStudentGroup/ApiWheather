@@ -11,7 +11,7 @@ export interface IWeather {
     date: string;
 }
 
-export const WeatherSchema = new Schema<IWeather>({
+const WeatherSchema = new Schema<IWeather>({
     temperature: {
         type: Number,
         required: true,
@@ -45,6 +45,6 @@ export const WeatherSchema = new Schema<IWeather>({
         default: new Date().toISOString(),
         required: true,
     },
-})
+});
 
-export const WeatherModel = model('weather', WeatherSchema);
+export const WeatherModel = model<IWeather>('weather', WeatherSchema);

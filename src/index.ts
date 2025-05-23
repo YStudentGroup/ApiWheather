@@ -1,4 +1,4 @@
-import { WeatherModel, type IWeather } from './db/weather.js';
+import { IWeather, WeatherModel } from './models/weather';
 import { dbConnect } from './db/connect.js';
 import { streamSSE } from 'hono/streaming';
 import { serve } from '@hono/node-server';
@@ -7,7 +7,7 @@ import { Hono } from 'hono';
 
 dotenv.config();
 
-const app = new Hono().basePath('/api');
+export const app = new Hono().basePath('/api');
 dbConnect()
     .then(() => {
         console.log('Connected to MongoDB');
@@ -25,16 +25,8 @@ let weatherCache: IWeather | null = null;
 app.post('/weather', async (c) => {
     const formData = await c.req.json();
 
-    weatherCache = {
-        temperature: formData.temperature,
-        felt: formData.felt,
-        condition: formData.condition,
-        season: formData.season,
-        wind: formData.wind,
-        humidity: formData.humidity,
-        location: formData.location,
-        date: formData.date,
-    };
+    if (!formData) return c.body(null, 400);
+
     const weatherObj = new WeatherModel(formData);
 
     try {
@@ -58,7 +50,6 @@ app.post('/weather', async (c) => {
 // });
 
 app.get('/sse/weather', async (c) => {
-    console.log('SSE connection established');
     return streamSSE(c, async (stream) => {
         await stream.writeSSE({
             data: weatherCache ? JSON.stringify(weatherCache) : '',
