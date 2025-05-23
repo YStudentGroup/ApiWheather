@@ -1,28 +1,24 @@
-version: "3.9"
+version: '3.8'
 
 services:
-  api:
-    build: .
-    container_name: weather-api
-    restart: unless-stopped
+  weather-api:
+    image: api-api
     ports:
       - "3001:3001"
     env_file:
       - .env
     depends_on:
-      - mongo
-    volumes:
-      - .:/app
-      - /app/node_modules
+      - mongo-db
+    networks:
+      - weather_net
 
-  mongo:
+  mongo-db:
     image: mongo:7.0
-    container_name: mongo-db
-    restart: unless-stopped
     ports:
       - "27017:27017"
-    volumes:
-      - mongodb-data:/data/db
+    networks:
+      - weather_net
 
-volumes:
-  mongodb-data:
+networks:
+  weather_net:
+    external: true

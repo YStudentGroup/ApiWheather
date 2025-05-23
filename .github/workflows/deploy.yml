@@ -56,7 +56,7 @@ jobs:
             cd API
 
             echo "Création du fichier .env..."
-            echo "MONGO_URI=mongodb://localhost:27017" > .env
+            echo "MONGO_URI=mongodb://mongo-db:27017" > .env
 
             echo "Démarrage des conteneurs Docker..."
             docker compose build
