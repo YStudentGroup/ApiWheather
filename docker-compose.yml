@@ -12,8 +12,6 @@ services:
 
   mongo-db:
     image: mongo:7.0
-    ports:
-      - "27017:27017"
     networks:
       - weather_net
 
