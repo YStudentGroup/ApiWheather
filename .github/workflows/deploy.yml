@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  VM_IP: 35.241.239.77
+  VM_IP: 35.241.140.46
 
 jobs:
   deploy:
